@@ -95,6 +95,7 @@ async def batch_update():
     direct_messages = tverify.get_twitter_dms()
     for direct_message in direct_messages:
         handle = get_screen_name_by_id(direct_message.message_create['sender_id'])
+        print("twitter dm" + handle)
         unique_id = str(direct_message.message_create['message_data']['text']).strip()
         result = get_user_row(db, handle, unique_id)
         if len(result) == 1:

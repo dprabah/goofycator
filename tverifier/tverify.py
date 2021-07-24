@@ -9,7 +9,7 @@ api = tweepy.API(auth)
 
 
 def verify_twitter_handle(handle=""):
-    print(handle)
+    print("verify_twitter_handle: {}".format(handle))
     try:
         api.get_user(handle)
         return True
@@ -19,7 +19,9 @@ def verify_twitter_handle(handle=""):
 
 
 def get_twitter_dms():
-    return api.list_direct_messages()
+    dms = api.list_direct_messages()
+    print("get_twitter_dms: {}".format(len(dms)))
+    return dms
 
 
 def get_screen_name_by_id(twitter_id: int):
