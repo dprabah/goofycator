@@ -1,0 +1,4 @@
+discord==1.7.3
+discord.py==1.7.3
+tinydb==4.5.1
+tweepy==3.10.0
