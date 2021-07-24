@@ -14,5 +14,10 @@ The following access tokens are necessary to make the bot up and running.
 - access_secret: <@handle of your Twitter bot>
 
 
+# Deploying in heroku
+## Setting Environmental vars
+- Navigate to Config Vars tab 
+- Add environmental variables
+
 # Credits
 https://www.freecodecamp.org/news/create-a-discord-bot-with-python/
