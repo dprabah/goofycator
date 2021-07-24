@@ -3,7 +3,7 @@
 The following access tokens are necessary to make the bot up and running.
 
 ## Discord
-- discord_token: <Discord token>
+- discord_token: <@Discord token>
 
 ## Twitter
 - twitter_bot_handle: <@handle of your Twitter bot>
