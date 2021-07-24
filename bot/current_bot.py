@@ -1,5 +1,6 @@
 import os
 
+from discord import Forbidden
 from discord.utils import get
 from tinydb import Query
 from discord.ext import tasks, commands
@@ -34,7 +35,7 @@ async def on_message(message):
 
 @bot.command(pass_context=True, name='verify', help='verifies your twitter account')
 async def verify_twitter_account(ctx, twitter_handle: str):
-    twitter_handle = twitter_handle.lower()
+    twitter_handle = "@" + twitter_handle.lower()
     try:
         if is_verified_user(ctx.message.author):
             await ctx.send("Hello! you are already a verified user!")
@@ -110,7 +111,11 @@ async def batch_update():
 async def add_role_and_cleanup(db, handle, result, direct_message_id):
     guild = await bot.fetch_guild(int(result['guild_id']))
     member = await guild.fetch_member(int(result['user_id']))
-    await member.add_roles(get(guild.roles, name=twitter_verified))
+    try:
+        await member.add_roles(get(guild.roles, name=twitter_verified))
+    except Forbidden:
+        print("Missing permission")
+        return
     delete_message_by_id(direct_message_id)
     update_processed_row(db, handle, result['unique_id'], str(result['guild_id']))
 
