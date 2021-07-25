@@ -50,7 +50,9 @@ async def verify_twitter_account(ctx, twitter_handle: str):
             unique_id = get_unique_id_of_user(db, twitter_handle, guild_name)
 
             await ctx.send("Follow me in Twitter: " + str(twitter_bot_handle))
-            await ctx.send("DM me the verification Id: " + unique_id + " and wait for until I add you the role!")
+            await ctx.send("DM me the verification Id: ")
+            await ctx.send(unique_id)
+            await ctx.send("and wait for until I add you the role!")
 
         else:
             await ctx.send("I couldn't fetch your handle, Pls try again!!")
