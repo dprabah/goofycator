@@ -7,7 +7,6 @@ from discord.ext import tasks, commands
 from db.db import create_and_return_db
 from tverifier import tverify
 from tverifier.tverify import get_screen_name_by_id, delete_message_by_id
-import uuid
 from random import randint
 
 
@@ -73,7 +72,6 @@ async def verify_twitter_account(ctx, twitter_handle: str):
                 icon_url=ctx.author.avatar_url,
                 text="Requested by {} ".format(ctx.author.name),
             )
-            await ctx.send("You")
             await ctx.send(embed=embed)
         else:
             await ctx.send("I couldn't fetch your handle, Pls try again!!")
