@@ -35,6 +35,32 @@ async def on_message(message):
     await bot.process_commands(message)
 
 
+@bot.command(
+    pass_context=True, name="whois", help="find the twitter id of the discord user"
+)
+async def find_twitter_handle(ctx, user_handle: str):
+    try:
+        user_id = get_user_clean_code(user_handle)
+        db = create_and_return_db("core_db", "accounts")
+        handle = get_twitter_handel_of_id(db, user_id)
+
+        if len(handle) > 0:
+            await ctx.send(
+                "{} is {} in Twitter.".format(user_handle, handle[0]["handle"])
+            )
+        elif user_id == bot.user.id:
+            await ctx.send("That is me :man_raising_hand: ")
+        else:
+            await ctx.send(
+                "I don't know who {} is :man_shrugging: , ask them to verify themselves".format(
+                    user_handle
+                )
+            )
+
+    except Exception as e:
+        print(e)
+
+
 @bot.command(pass_context=True, name="verify", help="verifies your twitter account")
 async def verify_twitter_account(ctx, twitter_handle: str):
     twitter_handle = "@" + twitter_handle.lower()
@@ -82,6 +108,11 @@ async def verify_twitter_account(ctx, twitter_handle: str):
         print(e)
 
 
+def get_twitter_handel_of_id(db, user_id):
+    q = Query()
+    return db.search((q.verified == False) & (q.user_id == user_id))
+
+
 def verify_handle_already_added(db, handle, guild_id):
     q = Query()
     return (
@@ -92,6 +123,10 @@ def verify_handle_already_added(db, handle, guild_id):
         )
         > 0
     )
+
+
+def get_user_clean_code(args):
+    return int(args.replace("<@!", "").replace(">", ""))
 
 
 def get_unique_id_of_user(db, handle, guild_id):
