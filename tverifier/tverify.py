@@ -30,3 +30,7 @@ def get_screen_name_by_id(twitter_id: int):
 
 def delete_message_by_id(message_id):
     api.destroy_direct_message(message_id)
+
+
+def get_own_screen_name():
+    return '@' + api.verify_credentials().screen_name
