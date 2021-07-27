@@ -2,17 +2,19 @@ import os
 
 from discord import Forbidden, Embed
 from discord.utils import get
-from tinydb import Query
 from discord.ext import tasks, commands
-from db.db import create_and_return_db
+
+from db.connection import create_session
+from db.entities.Users import Users
 from tverifier import tverify
 from tverifier.tverify import get_screen_name_by_id, delete_message_by_id
 from random import randint
-
+from sqlalchemy import update, select
 
 twitter_verified = "tvfd"
 twitter_bot_handle = os.getenv("twitter_bot_name")
 bot = commands.Bot(command_prefix=">")
+session = create_session()
 
 
 def init_bot():
@@ -41,21 +43,16 @@ async def verify_twitter_account(ctx, twitter_handle: str):
         if is_verified_user(ctx.message.author):
             await ctx.send("Hello! you are already a verified user!")
             return
-        db = create_and_return_db("core_db", "accounts")
+
         guild_name = str(ctx.message.guild.id)
-        is_verified_flagset_no_role(db, twitter_handle, guild_name)
+        is_verified_flagset_no_role(session, twitter_handle, guild_name)
         if tverify.verify_twitter_handle(twitter_handle):
-            if verify_handle_already_added(db, twitter_handle, guild_name):
-                db.insert(
-                    {
-                        "handle": twitter_handle,
-                        "verified": False,
-                        "unique_id": random_with_n_digits(6),
-                        "user_id": str(ctx.message.author.id),
-                        "guild_id": str(guild_name),
-                    }
-                )
-            unique_id = get_unique_id_of_user(db, twitter_handle, guild_name)
+            if verify_handle_already_added(session, twitter_handle, guild_name):
+                user = Users(twitter_handle=twitter_handle, is_verified_user=False, unique_id=random_with_n_digits(6),
+                             discord_user_id=str(ctx.message.author.id), users_guild_id=str(guild_name))
+                session.add(user)
+                session.commit()
+            unique_id = get_unique_id_of_user(session, twitter_handle, guild_name)
 
             embed = Embed(
                 title="Verification",
@@ -80,23 +77,24 @@ async def verify_twitter_account(ctx, twitter_handle: str):
         print(e)
 
 
-def verify_handle_already_added(db, handle, guild_id):
-    q = Query()
-    return (
-        not len(
-            db.search(
-                (q.handle == handle) & (q.guild_id == guild_id) & (q.verified == False)
-            )
-        )
-        > 0
-    )
+def verify_handle_already_added(db_session, handle, guild_id):
+    select_stmt = select(Users)\
+        .where(Users.twitter_handle == handle)\
+        .where(Users.users_guild_id == guild_id)\
+        .where(Users.is_verified_user == False)
+    result = db_session.execute(select_stmt).fetchall()
+    return not len(result) > 0
 
 
-def get_unique_id_of_user(db, handle, guild_id):
-    q = Query()
-    result = db.search((q.handle == handle) & (q.guild_id == guild_id))
+def get_unique_id_of_user(db_session, handle, guild_id):
+    # result = db.search((q.handle == handle) & (q.guild_id == guild_id))
+    select_stmt = select(Users.unique_id)\
+        .where(Users.twitter_handle == handle)\
+        .where(Users.users_guild_id == guild_id)
+    result = db_session.execute(select_stmt).fetchall()
+
     if len(result) > 0:
-        return result[0]["unique_id"]
+        return result[0].unique_id
     else:
         raise AssertionError("more than one handle exception")
 
@@ -106,9 +104,13 @@ def is_verified_user(author):
         return True
 
 
-def is_verified_flagset_no_role(db, handle, guild_id):
-    q = Query()
-    db.update({"verified": False}, (q.handle == handle) & (q.guild_id == guild_id))
+def is_verified_flagset_no_role(db_session, handle, guild_id):
+    update_stmt = update(Users)\
+        .where(Users.twitter_handle == handle)\
+        .where(Users.users_guild_id == guild_id) \
+        .values(is_verified_user=False)
+    db_session.execute(update_stmt)
+    db_session.commit()
 
 
 @bot.event
@@ -119,47 +121,47 @@ async def on_command_error(ctx, error):
 
 @tasks.loop(minutes=5.0)
 async def batch_update():
-    db = create_and_return_db("core_db", "accounts")
     direct_messages = tverify.get_twitter_dms()
     for direct_message in direct_messages:
         handle = get_screen_name_by_id(direct_message.message_create["sender_id"])
         unique_id = str(direct_message.message_create["message_data"]["text"]).strip()
         print("twitter dm: " + handle)
         print("twitter unique_id: " + unique_id)
-        result = get_user_row(db, handle, unique_id)
+        result = get_user_row(session, handle, unique_id)
         if len(result) == 1:
-            await add_role_and_cleanup(db, handle, result[0], direct_message.id)
+            await add_role_and_cleanup(session, handle, result[0], direct_message.id)
         elif len(result) > 1:
-            raise AssertionError(
-                "More user entries are available. Deleting all entries. Try Again!!"
-            )
+            raise AssertionError("More user entries are available. Deleting all entries. Try Again!!")
 
 
-async def add_role_and_cleanup(db, handle, result, direct_message_id):
-    guild = await bot.fetch_guild(int(result["guild_id"]))
-    member = await guild.fetch_member(int(result["user_id"]))
+async def add_role_and_cleanup(db_session, handle, result, direct_message_id):
+    guild = await bot.fetch_guild(int(result.users_guild_id))
+    member = await guild.fetch_member(int(result.discord_user_id))
     try:
         await member.add_roles(get(guild.roles, name=twitter_verified))
     except Forbidden:
         print("Missing permission")
         return
     delete_message_by_id(direct_message_id)
-    update_processed_row(db, handle, result["unique_id"], str(result["guild_id"]))
+    update_processed_row(db_session, handle, result.unique_id, str(result.users_guild_id))
 
 
-def get_user_row(db, handle, unique_id):
-    q = Query()
-    return db.search(
-        (q.handle == handle) & (q.unique_id == unique_id) & (q.verified == False)
-    )
+def get_user_row(db_session, handle, unique_id):
+    select_stmt = select(Users.unique_id, Users.users_guild_id, Users.discord_user_id)\
+        .where(Users.twitter_handle == handle)\
+        .where(Users.unique_id == unique_id)\
+        .where(Users.is_verified_user == False)
+    return db_session.execute(select_stmt).fetchall()
 
 
-def update_processed_row(db, handle, unique_id, guild_id):
-    q = Query()
-    db.update(
-        {"verified": True},
-        (q.handle == handle) & (q.unique_id == unique_id) & (q.guild_id == guild_id),
-    )
+def update_processed_row(db_session, handle, unique_id, guild_id):
+    update_stmt = update(Users)\
+        .where(Users.twitter_handle == handle) \
+        .where(Users.unique_id == unique_id) \
+        .where(Users.users_guild_id == guild_id) \
+        .values(is_verified_user=True)
+    db_session.execute(update_stmt)
+    db_session.commit()
 
 
 def random_with_n_digits(n):
