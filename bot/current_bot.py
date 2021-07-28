@@ -7,7 +7,7 @@ from discord.ext import tasks, commands
 from db.connection import create_session
 from db.entities.Users import Users
 from tverifier import tverify
-from tverifier.tverify import get_screen_name_by_id, delete_message_by_id, get_own_screen_name
+from tverifier.tverify import get_screen_name_by_id, delete_message_by_id, get_own_screen_name, get_own_screen_id
 from random import randint
 from sqlalchemy import update, select
 
@@ -52,11 +52,11 @@ async def verify_twitter_account(ctx, twitter_handle: str):
                 session.add(user)
                 session.commit()
             unique_id = get_unique_id_of_user(session, twitter_handle, guild_name)
-
+            twitter_dm_url = "https://twitter.com/messages/compose?recipient_id={}".format(get_own_screen_id())
             embed = Embed(
                 title="Verification",
                 color=0x00FF00,
-                description="Follow me in Twitter:  " + str(get_own_screen_name()),
+                description="Click here: [DM Link]({})".format(twitter_dm_url)
             )
             embed.add_field(
                 name="DM me the Verification ID: ",
@@ -74,6 +74,55 @@ async def verify_twitter_account(ctx, twitter_handle: str):
 
     except Exception as e:
         print(e)
+
+
+@bot.command(
+    pass_context=True, name="whois", help="find the twitter id of the discord user"
+)
+async def find_twitter_handle(ctx, discord_user_handle: str):
+    try:
+        discord_user_id = get_user_clean_code(discord_user_handle)
+        users_guild_id = str(ctx.message.guild.id)
+        if users_guild_id == bot.user.id:
+            await ctx.send("That is me :man_raising_hand: ")
+
+        twitter_handle = get_twitter_handle(session, discord_user_id, users_guild_id)
+        if twitter_handle is None:
+            await ctx.send(
+                "I don't know who {} is :man_shrugging: , ask him to verify".format(
+                    discord_user_handle
+                )
+            )
+            return
+
+        twitter_url = "https://twitter.com/{}".format(twitter_handle.replace("@", ""))
+        await ctx.send(
+            "{} is {} in Twitter {}".format(discord_user_handle, twitter_handle, twitter_url)
+        )
+
+    except Exception as e:
+        print(e)
+
+
+def get_user_clean_code(args):
+    return str(args.replace("<@!", "").replace(">", ""))
+
+
+def get_twitter_handle(db_session, discord_user_id, users_guild_id):
+    select_stmt = select(Users.twitter_handle) \
+        .where(Users.discord_user_id == discord_user_id) \
+        .where(Users.users_guild_id == users_guild_id) \
+        .where(Users.is_verified_user == True)
+    result = db_session.execute(select_stmt).fetchall()
+
+    if len(result) == 1:
+        return str(result[0].twitter_handle)
+    elif len(result) > 1:
+        for r in result:
+            print(r)
+        raise AssertionError("more than one handle exception")
+    else:
+        return None
 
 
 def verify_handle_already_added(db_session, handle, guild_id):
@@ -117,7 +166,7 @@ async def on_command_error(ctx, error):
         await ctx.send(error)
 
 
-@tasks.loop(minutes=5.0)
+@tasks.loop(minutes=1.0)
 async def batch_update():
     direct_messages = tverify.get_twitter_dms()
     for direct_message in direct_messages:
@@ -136,7 +185,7 @@ async def add_role_and_cleanup(db_session, handle, result, direct_message_id):
     guild = await bot.fetch_guild(int(result.users_guild_id))
     member = await guild.fetch_member(int(result.discord_user_id))
     try:
-        print(await member.add_roles(get(guild.roles, name=twitter_verified)))
+        await member.add_roles(get(guild.roles, name=twitter_verified))
     except Forbidden as e:
         print(e)
         return

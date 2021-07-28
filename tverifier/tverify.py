@@ -34,3 +34,7 @@ def delete_message_by_id(message_id):
 
 def get_own_screen_name():
     return '@' + api.verify_credentials().screen_name
+
+
+def get_own_screen_id():
+    return str(api.verify_credentials().id)
