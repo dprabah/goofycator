@@ -83,6 +83,7 @@ async def find_twitter_handle(ctx, discord_user_handle: str):
     try:
         discord_user_id = get_user_clean_code(discord_user_handle)
         users_guild_id = str(ctx.message.guild.id)
+        print("whois: {} -> {}, users_guild_id: {}".format(discord_user_handle, discord_user_id, users_guild_id))
         if users_guild_id == bot.user.id:
             await ctx.send("That is me :man_raising_hand: ")
 
@@ -109,6 +110,7 @@ def get_user_clean_code(args):
 
 
 def get_twitter_handle(db_session, discord_user_id, users_guild_id):
+    print("get_twitter_handle: {}, {}".format(discord_user_id, users_guild_id))
     select_stmt = select(Users.twitter_handle) \
         .where(Users.discord_user_id == discord_user_id) \
         .where(Users.users_guild_id == users_guild_id) \
