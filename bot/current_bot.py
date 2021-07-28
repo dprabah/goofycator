@@ -106,7 +106,7 @@ async def find_twitter_handle(ctx, discord_user_handle: str):
 
 
 def get_user_clean_code(args):
-    return str(args.replace("<@!", "").replace(">", ""))
+    return ''.join([n for n in args if n.isdigit()]).strip()
 
 
 def get_twitter_handle(db_session, discord_user_id, users_guild_id):
