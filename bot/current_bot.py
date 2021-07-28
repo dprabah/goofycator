@@ -166,7 +166,7 @@ async def on_command_error(ctx, error):
         await ctx.send(error)
 
 
-@tasks.loop(minutes=1.0)
+@tasks.loop(minutes=5.0)
 async def batch_update():
     direct_messages = tverify.get_twitter_dms()
     for direct_message in direct_messages:
