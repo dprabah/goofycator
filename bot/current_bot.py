@@ -7,7 +7,7 @@ from discord.ext import tasks, commands
 from db.connection import create_session
 from db.entities.Users import Users
 from tverifier import tverify
-from tverifier.tverify import get_screen_name_by_id, delete_message_by_id, get_own_screen_name, get_own_screen_id
+from tverifier.tverify import get_screen_name_by_id, delete_message_by_id, get_own_screen_id
 from random import randint
 from sqlalchemy import update, select
 
@@ -89,7 +89,7 @@ async def find_twitter_handle(ctx, discord_user_handle: str):
         twitter_handle = get_twitter_handle(session, discord_user_id, users_guild_id)
         if twitter_handle is None:
             await ctx.send(
-                "I don't know who {} is :man_shrugging: , ask him to verify".format(
+                "I don't know who {} is :man_shrugging: , ask him to run `>verify `".format(
                     discord_user_handle
                 )
             )
