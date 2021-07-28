@@ -11,7 +11,7 @@ from tverifier.tverify import get_screen_name_by_id, delete_message_by_id, get_o
 from random import randint
 from sqlalchemy import update, select
 
-twitter_verified = "tvfd"
+twitter_verified = "TJ"
 bot = commands.Bot(command_prefix=">")
 session = create_session()
 
@@ -19,7 +19,6 @@ session = create_session()
 def init_bot():
     global bot
     batch_update.start()
-
     bot.run(os.getenv("discord_token", "Discord_token is not available"))
 
 
@@ -137,9 +136,9 @@ async def add_role_and_cleanup(db_session, handle, result, direct_message_id):
     guild = await bot.fetch_guild(int(result.users_guild_id))
     member = await guild.fetch_member(int(result.discord_user_id))
     try:
-        await member.add_roles(get(guild.roles, name=twitter_verified))
-    except Forbidden:
-        print("Missing permission")
+        print(await member.add_roles(get(guild.roles, name=twitter_verified)))
+    except Forbidden as e:
+        print(e)
         return
     delete_message_by_id(direct_message_id)
     update_processed_row(db_session, handle, result.unique_id, str(result.users_guild_id))
