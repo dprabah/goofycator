@@ -1,3 +1,4 @@
-from bot import current_bot
+from bot.current_bot import Goofycator
 
-current_bot.init_bot()
+if __name__ == '__main__':
+    instance = Goofycator()
